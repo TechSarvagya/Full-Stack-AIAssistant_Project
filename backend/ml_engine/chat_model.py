@@ -4,16 +4,16 @@ import urllib.parse
 import wikipedia
 from datetime import datetime
 
-# -----------------------
-# Helpers
-# -----------------------
 def normalize(s: str) -> str:
     return re.sub(r'\s+', ' ', (s or '').strip().lower())
 
 def detect_language(text: str) -> str:
     msg = normalize(text)
     has_devanagari = bool(re.search(r'[\u0900-\u097F]', msg))
-    hinglish_tokens = {'kya','hai','ka','tum','mera','tera','krna','krta','krte','nahi','mat','kar','karo','krdo','kr diya','kr de'}
+    hinglish_tokens = {
+        'kya','hai','ka','tum','mera','tera','krna','krta','krte','nahi','mat',
+        'kar','karo','krdo','kr diya','kr de'
+    }
     latin_tokens = set(re.findall(r'\b[a-z]+\b', msg))
     score = len(latin_tokens & hinglish_tokens)
     if has_devanagari and score >= 1:
@@ -73,9 +73,6 @@ def simple_sentiment(text: str) -> str:
         return "positive"
     return "neutral"
 
-# -----------------------
-# Intents
-# -----------------------
 INTENTS = [
     {"name":"greeting","keywords":["hello","hi","hey","नमस्ते","हैलो","नमस्कार"],
      "responses":[ "Hello! How can I help today?", "नमस्ते! मैं आपकी कैसे सहायता कर सकता हूँ?" ]},
@@ -103,9 +100,6 @@ INTENTS = [
      "responses":[ "I can search Google/YouTube/Wikipedia, tell a joke, check weather, or show the time. What would you like?" ]},
 ]
 
-# -----------------------
-# Matching
-# -----------------------
 def match_intent(message: str):
     msg = normalize(message)
     scores = []
@@ -120,9 +114,6 @@ def match_intent(message: str):
     scores.sort(key=lambda x: (x[0], x[1]), reverse=True)
     return scores[0][2]
 
-# -----------------------
-# Actions
-# -----------------------
 def act_youtube_search(message, intent, context):
     q = strip_first_keyword(message, intent["keywords"]) or context.get("last_query")
     if not q:
@@ -162,9 +153,6 @@ def act_time(message, intent, context):
     now = datetime.now().strftime("%I:%M %p")
     return {"response": f"The current time is {now}."}
 
-# -----------------------
-# Main
-# -----------------------
 ACTIONS = {
     "act_youtube_search": act_youtube_search,
     "act_google_search": act_google_search,
@@ -175,7 +163,7 @@ ACTIONS = {
 
 class ChatModelWrapper:
     def __init__(self):
-        self.context = {}  # ✅ store last intent and query
+        self.context = {}
 
     def get_response(self, msg):
         lang = detect_language(msg)
@@ -219,7 +207,6 @@ class ChatModelWrapper:
                 "confidence": 0.85,
             }
 
-        # Fallback: try continuing last intent with new query
         last_intent = self.context.get("last_intent")
         if last_intent in ACTIONS:
             fn = ACTIONS[last_intent]
