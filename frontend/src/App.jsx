@@ -6,7 +6,7 @@ function App() {
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
-  const [lastIntent, setLastIntent] = useState(""); // only store platform intent like "youtube"|"google"|"wikipedia"
+  const [lastIntent, setLastIntent] = useState("");
   const chatEndRef = useRef(null);
 
   const addMessage = (msg) => {
@@ -18,6 +18,7 @@ function App() {
 
   const scrollToBottom = () =>
     chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
+
   useEffect(() => {
     scrollToBottom();
   }, [messages, loading]);
@@ -30,23 +31,11 @@ function App() {
     );
   };
 
-  /**
-   * sendMessage now accepts optional overrides so we don't rely on immediate state updates.
-   * textOverride: string (suggestion label or custom)
-   * opts: { intentOverride: "google"|"youtube"|"wikipedia", queryOverride: "sach", persistIntent: boolean }
-   */
   const sendMessage = async (textOverride, opts = {}) => {
     const { intentOverride, queryOverride, persistIntent = false } = opts;
-
-    // start from what user/suggestion provided
     let content = (textOverride ?? input).trim();
-
-    // effectiveIntent prefers explicit override, then saved lastIntent
     const effectiveIntent = intentOverride ?? lastIntent;
 
-    // If content does NOT already start with "search" and we have an effectiveIntent,
-    // build a normalized search query using the explicit queryOverride if provided,
-    // otherwise use the user's typed content as the query part.
     if (!/^search\b/i.test(content) && effectiveIntent) {
       const queryPart = queryOverride
         ? queryOverride.trim()
@@ -54,15 +43,15 @@ function App() {
         ? content
         : "";
 
-      content = queryPart ? `search on ${effectiveIntent} ${queryPart}` : `search on ${effectiveIntent}`;
-      // we DO NOT clear lastIntent here — keep persistence unless user explicitly types a search
-      // but if caller asked to persist intent, update the state:
+      content = queryPart
+        ? `search on ${effectiveIntent} ${queryPart}`
+        : `search on ${effectiveIntent}`;
+
       if (persistIntent && effectiveIntent) {
         setLastIntent(effectiveIntent);
       }
     }
 
-    // If user explicitly typed "search ..." (fresh context), clear saved intent
     if (/^search\b/i.test(content)) {
       setLastIntent("");
     }
@@ -131,9 +120,9 @@ function App() {
             >
               {m.sender !== "user" && <div style={styles.botavatar}>🤖</div>}
               <div
-                style={{
-                  ...(m.sender === "user" ? styles.userBubble : styles.bubbleBot),
-                }}
+                style={
+                  m.sender === "user" ? styles.userBubble : styles.bubbleBot
+                }
               >
                 <div style={styles.text}>{m.text}</div>
 
@@ -152,7 +141,8 @@ function App() {
 
                 {m.intent && (
                   <div style={styles.meta}>
-                    {m.intent} • {m.lang || "lang"} • {(m.confidence ?? 0).toFixed(2)}
+                    {m.intent} • {m.lang || "lang"} •{" "}
+                    {(m.confidence ?? 0).toFixed(2)}
                   </div>
                 )}
 
@@ -163,18 +153,14 @@ function App() {
                         key={idx}
                         style={styles.chip}
                         onClick={() => {
-                          // extract the query part from the bot text if it's in quotes like 'sach'
                           const match = m.text && m.text.match(/'(.*?)'/);
                           const extractedQuery = match ? match[1] : "";
 
-                          // determine platform intent from the suggestion label (do NOT set state here)
                           let detectedIntent = "";
                           if (/google/i.test(s)) detectedIntent = "google";
                           else if (/wikipedia/i.test(s)) detectedIntent = "wikipedia";
                           else if (/youtube/i.test(s)) detectedIntent = "youtube";
 
-                          // Call sendMessage with explicit overrides — avoids stale state issues
-                          // persistIntent=true keeps this platform for subsequent typed queries
                           sendMessage(s, {
                             intentOverride: detectedIntent || undefined,
                             queryOverride: extractedQuery || undefined,
@@ -215,7 +201,11 @@ function App() {
             onKeyDown={onKeyDown}
             style={styles.input}
           />
-          <button onClick={() => sendMessage()} disabled={loading} style={styles.sendbutton}>
+          <button
+            onClick={() => sendMessage()}
+            disabled={loading}
+            style={styles.sendbutton}
+          >
             {loading ? "⏳" : "SEND"}
           </button>
         </div>
